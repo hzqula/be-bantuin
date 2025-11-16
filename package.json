@@ -28,6 +28,8 @@
     "@nestjs/platform-express": "^11.0.1",
     "@prisma/client": "^6.18.0",
     "bcrypt": "^6.0.0",
+    "crypto": "^1.0.1",
+    "midtrans": "^1.0.7",
     "nestjs-zod": "^5.0.1",
     "passport": "^0.7.0",
     "passport-google-oauth2": "^0.2.0",
