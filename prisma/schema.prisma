@@ -32,48 +32,40 @@ model User {
   createdAt            DateTime  @default(now()) @map("created_at")
   updatedAt            DateTime  @updatedAt @map("updated_at")
 
-  wallet           Wallet?
-  payoutAccounts   PayoutAccount[]
-  payoutRequests   PayoutRequest[]
-  services         Service[]        @relation("SellerServices")
-  ordersAsBuyer    Order[]          @relation("BuyerOrders")
-  reviews          Review[]         @relation("ReviewAuthor")
-  openedDisputes   Dispute[]        @relation("OpenedDisputes")
-  resolvedDisputes Dispute[]        @relation("ResolvedDisputes")
-  disputeMessages  DisputeMessage[]
-  notifications    Notification[]
+  wallet                   Wallet?
+  payoutAccounts           PayoutAccount[]
+  payoutRequests           PayoutRequest[]
+  services                 Service[]                 @relation("SellerServices")
+  ordersAsBuyer            Order[]                   @relation("BuyerOrders")
+  reviews                  Review[]                  @relation("ReviewAuthor")
+  openedDisputes           Dispute[]                 @relation("OpenedDisputes")
+  resolvedDisputes         Dispute[]                 @relation("ResolvedDisputes")
+  disputeMessages          DisputeMessage[]
+  notifications            Notification[]
+  conversationParticipants ConversationParticipant[]
+  messagesSent             Message[]
 
   @@map("users")
 }
 
 model Service {
-  id          String  @id @default(cuid())
-  sellerId    String  @map("seller_id")
-  title       String
-  description String  @db.Text
-  category    String
-  price       Decimal @db.Decimal(10, 2)
+  id           String   @id @default(cuid())
+  sellerId     String   @map("seller_id")
+  title        String
+  description  String   @db.Text
+  category     String
+  price        Decimal  @db.Decimal(10, 2)
+  deliveryTime Int      @map("delivery_time") // Dalam hari
+  revisions    Int      @default(1) // Jumlah revisi yang diperbolehkan
+  images       String[] // Array URL gambar
+  totalOrders  Int      @default(0) @map("total_orders")
+  avgRating    Decimal  @default(0) @map("avg_rating") @db.Decimal(3, 2)
+  totalReviews Int      @default(0) @map("total_reviews")
+  status       String   @default("active") // active, paused, deleted
+  isActive     Boolean  @default(true) @map("is_active")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
 
-  // Delivery details
-  deliveryTime Int @map("delivery_time") // Dalam hari
-  revisions    Int @default(1) // Jumlah revisi yang diperbolehkan
-
-  // Media
-  images String[] // Array URL gambar
-
-  // Stats
-  totalOrders  Int     @default(0) @map("total_orders")
-  avgRating    Decimal @default(0) @map("avg_rating") @db.Decimal(3, 2)
-  totalReviews Int     @default(0) @map("total_reviews")
-
-  // Status
-  status   String  @default("active") // active, paused, deleted
-  isActive Boolean @default(true) @map("is_active")
-
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
-
-  // Relations
   seller  User     @relation("SellerServices", fields: [sellerId], references: [id], onDelete: Cascade)
   orders  Order[]
   reviews Review[]
@@ -85,52 +77,35 @@ model Service {
 }
 
 model Order {
-  id        String @id @default(cuid())
-  serviceId String @map("service_id")
-  buyerId   String @map("buyer_id")
-
-  // Detail pesanan
-  title        String // Snapshot dari service title
-  price        Decimal @db.Decimal(10, 2) // Snapshot harga saat order
-  deliveryTime Int     @map("delivery_time") // Snapshot delivery time
-
-  // Requirements from buyer
-  requirements String   @db.Text // Detail kebutuhan buyer
-  attachments  String[] // File yang diupload buyer
-
-  // Delivery
-  deliveryFiles String[]  @map("delivery_files") // File hasil kerja seller
-  deliveryNote  String?   @map("delivery_note") @db.Text
-  deliveredAt   DateTime? @map("delivered_at")
-
-  // Status & Timeline
-  status String @default("pending") // pending, in_progress, delivered, revision, completed, cancelled, disputed
-
-  // Payment
-  isPaid Boolean   @default(false) @map("is_paid")
-  paidAt DateTime? @map("paid_at")
-
-  // Revisions
-  revisionCount Int @default(0) @map("revision_count")
-  maxRevisions  Int @map("max_revisions") // Snapshot dari service revisions
-
-  // Dates
+  id                 String    @id @default(cuid())
+  serviceId          String    @map("service_id")
+  buyerId            String    @map("buyer_id")
+  title              String // Snapshot dari service title
+  price              Decimal   @db.Decimal(10, 2) // Snapshot harga saat order
+  deliveryTime       Int       @map("delivery_time") // Snapshot delivery time
+  requirements       String    @db.Text // Detail kebutuhan buyer
+  attachments        String[] // File yang diupload buyer
+  deliveryFiles      String[]  @map("delivery_files") // File hasil kerja seller
+  deliveryNote       String?   @map("delivery_note") @db.Text
+  deliveredAt        DateTime? @map("delivered_at")
+  status             String    @default("pending") // pending, in_progress, delivered, revision, completed, cancelled, disputed
+  isPaid             Boolean   @default(false) @map("is_paid")
+  paidAt             DateTime? @map("paid_at")
+  revisionCount      Int       @default(0) @map("revision_count")
+  maxRevisions       Int       @map("max_revisions") // Snapshot dari service revisions
   dueDate            DateTime  @map("due_date") // Tenggat waktu
   completedAt        DateTime? @map("completed_at")
   cancelledAt        DateTime? @map("cancelled_at")
   cancellationReason String?   @map("cancellation_reason") @db.Text
-
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
+  createdAt          DateTime  @default(now()) @map("created_at")
+  updatedAt          DateTime  @updatedAt @map("updated_at")
 
   payment      Payment? // Satu order punya satu payment
   transactions WalletTransaction[]
-
-  // Relasi
-  service Service  @relation(fields: [serviceId], references: [id])
-  buyer   User     @relation("BuyerOrders", fields: [buyerId], references: [id])
-  review  Review? // One to one - satu order bisa punya satu review
-  dispute Dispute?
+  service      Service             @relation(fields: [serviceId], references: [id])
+  buyer        User                @relation("BuyerOrders", fields: [buyerId], references: [id])
+  review       Review? // One to one - satu order bisa punya satu review
+  dispute      Dispute?
 
   @@index([serviceId])
   @@index([buyerId])
@@ -139,23 +114,17 @@ model Order {
 }
 
 model Review {
-  id      String @id @default(cuid())
-  orderId String @unique @map("order_id") // One to one dengan order
-
-  serviceId String @map("service_id")
-  authorId  String @map("author_id") // User yang menulis review (buyer)
-
-  rating  Int // 1-5
-  comment String @db.Text
-
-  // Seller response
+  id             String    @id @default(cuid())
+  orderId        String    @unique @map("order_id") // One to one dengan order
+  serviceId      String    @map("service_id")
+  authorId       String    @map("author_id") // User yang menulis review (buyer)
+  rating         Int // 1-5
+  comment        String    @db.Text
   sellerResponse String?   @map("seller_response") @db.Text
   respondedAt    DateTime? @map("responded_at")
+  createdAt      DateTime  @default(now()) @map("created_at")
+  updatedAt      DateTime  @updatedAt @map("updated_at")
 
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
-
-  // Relations
   order   Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
   service Service @relation(fields: [serviceId], references: [id])
   author  User    @relation("ReviewAuthor", fields: [authorId], references: [id])
@@ -173,26 +142,22 @@ model Wallet {
   updatedAt DateTime @updatedAt @map("updated_at")
 
   payoutRequests PayoutRequest[]
-
-  user         User                @relation(fields: [userId], references: [id], onDelete: Cascade)
-  transactions WalletTransaction[]
+  user           User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  transactions   WalletTransaction[]
 
   @@map("wallets")
 }
 
 model WalletTransaction {
-  id        String  @id @default(cuid())
-  walletId  String  @map("wallet_id")
-  orderId   String? @map("order_id") // Link ke order
-  paymentId String? @map("payment_id") // Link ke payment gateway
-
-  type   String // "ESCROW_RELEASE", "ESCROW_REFUND", "WITHDRAWAL"
-  amount Decimal @db.Decimal(12, 2) // Positif (credit) atau Negatif (debit)
-
-  balanceBefore Decimal @map("balance_before") @db.Decimal(12, 2)
-  balanceAfter  Decimal @map("balance_after") @db.Decimal(12, 2)
-  description   String
-
+  id              String   @id @default(cuid())
+  walletId        String   @map("wallet_id")
+  orderId         String?  @map("order_id") // Link ke order
+  paymentId       String?  @map("payment_id") // Link ke payment gateway
+  type            String // "ESCROW_RELEASE", "ESCROW_REFUND", "WITHDRAWAL"
+  amount          Decimal  @db.Decimal(12, 2) // Positif (credit) atau Negatif (debit)
+  balanceBefore   Decimal  @map("balance_before") @db.Decimal(12, 2)
+  balanceAfter    Decimal  @map("balance_after") @db.Decimal(12, 2)
+  description     String
   createdAt       DateTime @default(now()) @map("created_at")
   payoutRequestId String?  @map("payout_request_id")
   disputeId       String?  @map("dispute_id")
@@ -210,19 +175,17 @@ model WalletTransaction {
 }
 
 model Payment {
-  id      String  @id @default(cuid())
-  orderId String  @unique @map("order_id") // Setiap order memiliki satu payment
-  amount  Decimal @db.Decimal(12, 2)
-  status  String  @default("pending") // "pending", "settlement", "expire", "cancel"
-  gateway String  @default("midtrans")
-
-  gatewayToken       String? @map("gateway_token") // snap_token dari Midtrans
-  gatewayRedirectUrl String? @map("gateway_redirect_url") // snap_redirect_url
-  paymentType        String? @map("payment_type") // mis: "qris", "bank_transfer"
-  transactionId      String? @unique @map("transaction_id") // ID dari Midtrans
-
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
+  id                 String   @id @default(cuid())
+  orderId            String   @unique @map("order_id") // Setiap order memiliki satu payment
+  amount             Decimal  @db.Decimal(12, 2)
+  status             String   @default("pending") // "pending", "settlement", "expire", "cancel"
+  gateway            String   @default("midtrans")
+  gatewayToken       String?  @map("gateway_token") // snap_token dari Midtrans
+  gatewayRedirectUrl String?  @map("gateway_redirect_url") // snap_redirect_url
+  paymentType        String?  @map("payment_type") // mis: "qris", "bank_transfer"
+  transactionId      String?  @unique @map("transaction_id") // ID dari Midtrans
+  createdAt          DateTime @default(now()) @map("created_at")
+  updatedAt          DateTime @updatedAt @map("updated_at")
 
   order        Order               @relation(fields: [orderId], references: [id])
   transactions WalletTransaction[] // Jika ada refund dari payment gateway lgsg
@@ -251,13 +214,12 @@ model PayoutAccount {
 }
 
 model PayoutRequest {
-  id        String  @id @default(cuid())
-  userId    String  @map("user_id")
-  walletId  String  @map("wallet_id")
-  accountId String  @map("account_id") // Relasi ke PayoutAccount
-  amount    Decimal @db.Decimal(12, 2)
-  status    String  @default("pending") // "pending", "approved", "rejected", "completed"
-
+  id          String    @id @default(cuid())
+  userId      String    @map("user_id")
+  walletId    String    @map("wallet_id")
+  accountId   String    @map("account_id") // Relasi ke PayoutAccount
+  amount      Decimal   @db.Decimal(12, 2)
+  status      String    @default("pending") // "pending", "approved", "rejected", "completed"
   requestedAt DateTime  @default(now()) @map("requested_at")
   processedAt DateTime? @map("processed_at")
   adminNotes  String?   @map("admin_notes") @db.Text // Alasan jika ditolak
@@ -289,23 +251,18 @@ enum DisputeResolution {
 }
 
 model Dispute {
-  id         String @id @default(cuid())
-  orderId    String @unique @map("order_id") // Relasi one-to-one dengan Order
-  openedById String @map("opened_by_id") // User (buyer/seller) yang membuka
-
-  status DisputeStatus @default(OPEN)
-  reason String        @db.Text
-
-  // Hasil sengketa
+  id           String             @id @default(cuid())
+  orderId      String             @unique @map("order_id") // Relasi one-to-one dengan Order
+  openedById   String             @map("opened_by_id") // User (buyer/seller) yang membuka
+  status       DisputeStatus      @default(OPEN)
+  reason       String             @db.Text
   resolution   DisputeResolution?
   resolvedById String?            @map("resolved_by_id") // Admin yang menyelesaikan
   resolvedAt   DateTime?          @map("resolved_at")
   adminNotes   String?            @map("admin_notes") @db.Text
+  createdAt    DateTime           @default(now()) @map("created_at")
+  updatedAt    DateTime           @updatedAt @map("updated_at")
 
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
-
-  // Relasi
   order              Order               @relation(fields: [orderId], references: [id])
   openedBy           User                @relation("OpenedDisputes", fields: [openedById], references: [id])
   resolvedBy         User?               @relation("ResolvedDisputes", fields: [resolvedById], references: [id], onUpdate: NoAction, onDelete: NoAction)
@@ -320,16 +277,13 @@ model Dispute {
 }
 
 model DisputeMessage {
-  id        String @id @default(cuid())
-  disputeId String @map("dispute_id")
-  senderId  String @map("sender_id") // Bisa buyer, seller, atau admin
-
+  id          String   @id @default(cuid())
+  disputeId   String   @map("dispute_id")
+  senderId    String   @map("sender_id") // Bisa buyer, seller, atau admin
   content     String   @db.Text
   attachments String[]
+  createdAt   DateTime @default(now()) @map("created_at")
 
-  createdAt DateTime @default(now()) @map("created_at")
-
-  // Relasi
   dispute Dispute @relation(fields: [disputeId], references: [id], onDelete: Cascade)
   sender  User    @relation(fields: [senderId], references: [id])
 
@@ -339,23 +293,64 @@ model DisputeMessage {
 }
 
 model Notification {
-  id      String  @id @default(cuid())
-  userId  String  @map("user_id")
-  content String  @db.Text
-  isRead  Boolean @default(false) @map("is_read")
-
-  // Link untuk frontend (mis: /orders/xyz)
-  link String?
-
-  // Tipe untuk pengelompokan (opsional tapi bagus)
-  type String? @default("GENERAL") // ORDER, DISPUTE, WALLET, REVIEW
-
+  id        String   @id @default(cuid())
+  userId    String   @map("user_id")
+  content   String   @db.Text
+  isRead    Boolean  @default(false) @map("is_read")
+  link      String?
+  type      String?  @default("GENERAL") // ORDER, DISPUTE, WALLET, REVIEW
   createdAt DateTime @default(now()) @map("created_at")
 
-  // Relasi
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
   @@index([isRead])
   @@map("notifications")
+}
+
+model Conversation {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  participants ConversationParticipant[]
+  messages     Message[]
+
+  lastMessageId String?  @unique @map("last_message_id")
+  lastMessage   Message? @relation("LastMessage", fields: [lastMessageId], references: [id], onUpdate: NoAction, onDelete: NoAction)
+
+  @@index([updatedAt])
+  @@map("conversations")
+}
+
+model ConversationParticipant {
+  id             String @id @default(cuid())
+  userId         String @map("user_id")
+  conversationId String @map("conversation_id")
+
+  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, conversationId]) // User hanya bisa join 1x per convo
+  @@index([userId])
+  @@index([conversationId])
+  @@map("conversation_participants")
+}
+
+model Message {
+  id             String    @id @default(cuid())
+  conversationId String    @map("conversation_id")
+  senderId       String    @map("sender_id")
+  content        String    @db.Text
+  isRead         Boolean   @default(false) @map("is_read")
+  readAt         DateTime? @map("read_at")
+  createdAt      DateTime  @default(now()) @map("created_at")
+
+  conversation              Conversation  @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  sender                    User          @relation(fields: [senderId], references: [id], onDelete: Cascade)
+  lastMessageInConversation Conversation? @relation("LastMessage")
+
+  @@index([conversationId])
+  @@index([senderId])
+  @@map("messages")
 }

@@ -5,7 +5,6 @@ import {
   ConflictException,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
-import { ActivateSellerDto } from './dto/activate-seller.dto';
 
 @Injectable()
 export class UsersService {

@@ -15,7 +15,7 @@ type Tx = Omit<
 >;
 
 @Injectable()
-export class NotificationService {
+export class NotificationsService {
   constructor(private prisma: PrismaService) {}
 
   /**

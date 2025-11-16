@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common';
+import { EventEmitterModule } from '@nestjs/event-emitter';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { ConfigModule } from '@nestjs/config';
@@ -21,6 +22,7 @@ import { ChatsModule } from './chats/chats.module';
     ConfigModule.forRoot({
       isGlobal: true,
     }),
+    EventEmitterModule.forRoot(),
     AuthModule,
     UsersModule,
     ServicesModule,
@@ -37,4 +39,5 @@ import { ChatsModule } from './chats/chats.module';
   controllers: [AppController],
   providers: [AppService, PrismaService],
 })
+
 export class AppModule {}

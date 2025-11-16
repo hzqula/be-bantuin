@@ -92,4 +92,26 @@ export class AuthService {
       where: { id: userId, status: 'active' },
     });
   }
+
+  /**
+   * [BARU] Metode untuk memvalidasi user dari token JWT penuh
+   * Digunakan oleh WebSocket Gateway
+   */
+  async validateUserFromJwt(token: string): Promise<User> {
+    try {
+      const payload: JwtPayload = this.jwtService.verify(token);
+      if (!payload || !payload.sub) {
+        throw new UnauthorizedException('Invalid token payload');
+      }
+      const user = await this.validateUser(payload.sub);
+      if (!user) {
+        throw new UnauthorizedException('User not found or inactive');
+      }
+      return user;
+    } catch (error) {
+      throw new UnauthorizedException(
+        `Token validation failed: ${error.message}`,
+      );
+    }
+  }
 }

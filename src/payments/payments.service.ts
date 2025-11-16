@@ -6,6 +6,7 @@ import {
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../prisma/prisma.service';
+import { EventEmitter2 } from '@nestjs/event-emitter';
 import * as midtransClient from 'midtrans-client';
 import type { Order, User } from '@prisma/client';
 import { createHmac } from 'crypto';
@@ -18,9 +19,12 @@ export class PaymentsService {
   constructor(
     private configService: ConfigService,
     private prisma: PrismaService,
+    private eventEmitter: EventEmitter2,
   ) {
-    this.midtransServerKey = this.configService.get<string>('MIDTRANS_SERVER_KEY')!;
-    
+    this.midtransServerKey = this.configService.get<string>(
+      'MIDTRANS_SERVER_KEY',
+    )!;
+
     this.snap = new midtransClient.Snap({
       isProduction: false, // Ganti ke true di production
       serverKey: this.midtransServerKey,
@@ -99,11 +103,23 @@ export class PaymentsService {
    * PENTING: Idempotency & Signature Validation
    */
   async handlePaymentWebhook(payload: any) {
-    const { order_id, transaction_status, transaction_id, status_code, gross_amount, signature_key } = payload;
+    const {
+      order_id,
+      transaction_status,
+      transaction_id,
+      status_code,
+      gross_amount,
+      signature_key,
+    } = payload;
 
     // 1. Verifikasi Signature Key (KEAMANAN KRITIS)
-    const expectedSignature = this.verifySignature(order_id, status_code, gross_amount, this.midtransServerKey);
-    
+    const expectedSignature = this.verifySignature(
+      order_id,
+      status_code,
+      gross_amount,
+      this.midtransServerKey,
+    );
+
     if (signature_key !== expectedSignature) {
       throw new BadRequestException('Invalid signature');
     }
@@ -119,23 +135,29 @@ export class PaymentsService {
     }
 
     // 3. Idempotency Check: Jika status sudah "settlement", jangan proses lagi
-    if (payment.status === 'settlement' && transaction_status === 'settlement') {
+    if (
+      payment.status === 'settlement' &&
+      transaction_status === 'settlement'
+    ) {
       return { message: 'Payment already processed' };
     }
-    
+
     // 4. Update status payment
     let updatedStatus = payment.status;
 
-    if (transaction_status === 'settlement' || transaction_status === 'capture') {
-      // Pembayaran sukses
+    if (
+      transaction_status === 'settlement' ||
+      transaction_status === 'capture'
+    ) {
       updatedStatus = 'settlement';
-      // Panggil OrdersService untuk mengubah status order
-      // Kita return orderId agar bisa dipanggil dari controller
     } else if (transaction_status === 'pending') {
       updatedStatus = 'pending';
     } else if (transaction_status === 'expire') {
       updatedStatus = 'expire';
-    } else if (transaction_status === 'cancel' || transaction_status === 'deny') {
+    } else if (
+      transaction_status === 'cancel' ||
+      transaction_status === 'deny'
+    ) {
       updatedStatus = 'cancelled';
     }
 
@@ -148,12 +170,13 @@ export class PaymentsService {
       },
     });
 
-    // Jika sukses, kembalikan orderId agar OrdersService bisa dipanggil
+    // 5. PANCARKAN EVENT (Jika sukses)
     if (updatedStatus === 'settlement') {
-      return {
+      // Daripada mengembalikan, kita pancarkan event
+      this.eventEmitter.emit('payment.settled', {
         orderId: order_id,
         transactionData: payload,
-      };
+      });
     }
 
     return { message: `Payment status updated to ${updatedStatus}` };
@@ -162,7 +185,12 @@ export class PaymentsService {
   /**
    * Helper untuk verifikasi signature Midtrans
    */
-  private verifySignature(orderId: string, statusCode: string, grossAmount: string, serverKey: string): string {
+  private verifySignature(
+    orderId: string,
+    statusCode: string,
+    grossAmount: string,
+    serverKey: string,
+  ): string {
     const hash = createHmac('sha512', serverKey);
     hash.update(`${orderId}${statusCode}${grossAmount}${serverKey}`);
     return hash.digest('hex');

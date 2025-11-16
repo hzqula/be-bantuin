@@ -1,7 +1,6 @@
 import { Module } from '@nestjs/common';
 import { OrdersService } from './orders.service';
 import { OrdersController } from './orders.controller';
-import { PrismaModule } from '../prisma/prisma.module';
 import { PaymentsModule } from 'src/payments/payments.module';
 
 /**
@@ -26,9 +25,10 @@ import { PaymentsModule } from 'src/payments/payments.module';
  * - Audit trail untuk semua perubahan status
  */
 @Module({
-  imports: [PrismaModule, PaymentsModule],
+  imports: [PaymentsModule],
   controllers: [OrdersController],
   providers: [OrdersService],
   exports: [OrdersService], // Export untuk digunakan di modules lain (Reviews, Disputes)
 })
+
 export class OrdersModule {}

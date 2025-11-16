@@ -15,7 +15,7 @@ export const getBatch = (email: string): string | null => {
   const currentYear = new Date().getFullYear();
   const baseYear = 2000;
 
-  // itung taun angkatan
+  // Hitung tahun angkatan
   const angkatan = baseYear + parseInt(digit, 10);
 
   if (angkatan > currentYear) {

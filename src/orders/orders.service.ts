@@ -3,6 +3,7 @@ import {
   NotFoundException,
   BadRequestException,
 } from '@nestjs/common';
+import { OnEvent } from '@nestjs/event-emitter';
 import { PrismaService } from '../prisma/prisma.service';
 import { PaymentsService } from '../payments/payments.service';
 import { WalletsService } from 'src/wallets/wallets.service';
@@ -14,7 +15,7 @@ import type {
   CancelOrderDto,
 } from './dto/order.dto';
 import { Prisma } from '@prisma/client';
-import { NotificationService } from 'src/notifications/notifications.service';
+import { NotificationsService } from 'src/notifications/notifications.service';
 
 @Injectable()
 export class OrdersService {
@@ -22,7 +23,7 @@ export class OrdersService {
     private prisma: PrismaService,
     private paymentsService: PaymentsService,
     private walletService: WalletsService,
-    private notificationService: NotificationService,
+    private notificationService: NotificationsService,
   ) {}
 
   /**
@@ -168,71 +169,74 @@ export class OrdersService {
   }
 
   /**
-   * Callback dari payment gateway setelah pembayaran berhasil
+   * Listener untuk event 'payment.settled'
+   * Ini menggantikan panggilan dari PaymentsController
    *
-   * Ini dipanggil oleh webhook Midtrans/Xendit
-   * PENTING: Harus divalidasi dengan signature untuk keamanan
+   * @param payload - { orderId: string, transactionData: any }
    */
-  async handlePaymentSuccess(orderId: string, transactionData: any) {
+  @OnEvent('payment.settled')
+  async handlePaymentSuccess(payload: {
+    orderId: string;
+    transactionData: any;
+  }) {
+    const { orderId, transactionData } = payload;
+
     const order = await this.prisma.order.findUnique({
       where: { id: orderId },
     });
 
     if (!order) {
-      throw new NotFoundException('Order tidak ditemukan');
+      console.error(`[PaymentSettled] Order ${orderId} not found`);
+      return;
     }
 
     if (order.isPaid) {
-      return { message: 'Pembayaran sudah diproses sebelumnya' };
+      console.log(`[PaymentSettled] Order ${orderId} already paid`);
+      return; // Idempotency
     }
 
-    // Gunakan transaction untuk memastikan atomicity
-    const result = await this.prisma.$transaction(async (tx) => {
-      // Update order status
-      const updatedOrder = await tx.order.update({
-        where: { id: orderId },
-        data: {
-          status: 'paid_escrow',
-          isPaid: true,
-          paidAt: new Date(),
-        },
+    try {
+      await this.prisma.$transaction(async (tx) => {
+        // Update order status
+        const updatedOrder = await tx.order.update({
+          where: { id: orderId },
+          data: {
+            status: 'paid_escrow',
+            isPaid: true,
+            paidAt: new Date(),
+          },
+        });
+
+        await tx.payment.update({
+          where: { orderId: orderId },
+          data: {
+            status: 'settlement',
+            transactionId: transactionData.transaction_id,
+            paymentType: transactionData.payment_type,
+          },
+        });
+
+        const service = await tx.service.findUniqueOrThrow({
+          where: { id: order.serviceId },
+          select: { sellerId: true },
+        });
+
+        // Buat notifikasi untuk Seller
+        await this.notificationService.createInTx(tx, {
+          userId: service.sellerId,
+          content: `Pesanan baru #${order.id.substring(0, 8)} telah dibayar!`,
+          link: `/seller/orders/${order.id}`,
+          type: 'ORDER',
+        });
       });
-
-      // Implementasi TODO: Buat record di Payment table
-      // Ini sudah di-handle oleh PaymentsService (upsert),
-      // kita hanya perlu update status akhir di sini
-      await tx.payment.update({
-        where: { orderId: orderId },
-        data: {
-          status: 'settlement',
-          transactionId: transactionData.transaction_id,
-          paymentType: transactionData.payment_type,
-        },
-      });
-
-      // Implementasi TODO: Hold dana di escrow
-      // Dalam model kita, dana "dipegang" platform.
-      // Tidak ada wallet transaction saat ini.
-      // Kita baru mencatat transaksi saat RELEASE (ke seller) atau REFUND (ke buyer).
-
-      // Ambil sellerId
-      const service = await tx.service.findUniqueOrThrow({
-        where: { id: order.serviceId },
-        select: { sellerId: true },
-      });
-
-      // Buat notifikasi untuk Seller
-      await this.notificationService.createInTx(tx, {
-        userId: service.sellerId,
-        content: `Pesanan baru #${order.id.substring(0, 8)} telah dibayar!`,
-        link: `/seller/orders/${order.id}`,
-        type: 'ORDER',
-      });
-
-      return updatedOrder;
-    });
-
-    return result;
+    } catch (error) {
+      console.error(
+        `[PaymentSettled] Failed to process order ${orderId}:`,
+        error,
+      );
+      // Jika gagal, event ini perlu di-retry (bisa menggunakan queue/antrian)
+      // Untuk saat ini, kita log error-nya
+    }
   }
 
   /**

@@ -7,13 +7,13 @@ import {
 import { PrismaService } from '../prisma/prisma.service';
 import type { CreateDisputeDto } from './dto/create-dispute.dto';
 import type { AddDisputeMessageDto } from './dto/add-message.dto';
-import { NotificationService } from 'src/notifications/notifications.service';
+import { NotificationsService } from 'src/notifications/notifications.service';
 
 @Injectable()
 export class DisputesService {
   constructor(
     private prisma: PrismaService,
-    private notificationService: NotificationService,
+    private notificationService: NotificationsService,
   ) {}
 
   /**

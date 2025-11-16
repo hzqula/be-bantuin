@@ -6,14 +6,14 @@ import {
 import { PrismaService } from '../prisma/prisma.service';
 import { WalletsService } from 'src/wallets/wallets.service';
 import type { ResolveDisputeDto } from 'src/disputes/dto/resolve-dispute.dto';
-import { NotificationService } from 'src/notifications/notifications.service';
+import { NotificationsService } from 'src/notifications/notifications.service';
 
 @Injectable()
 export class AdminService {
   constructor(
     private prisma: PrismaService,
     private walletService: WalletsService,
-    private notificationService: NotificationService,
+    private notificationService: NotificationsService,
   ) {}
 
   /**
