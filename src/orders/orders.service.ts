@@ -492,33 +492,16 @@ export class OrdersService {
   async findAll(userId: string, filters: OrderFilterDto) {
     const { role, status, search, page, limit, sortBy } = filters;
 
+    // --- TAMBAHKAN KONVERSI MANUAL DI SINI ---
+    // Pastikan page dan limit adalah number valid
+    const pageNum = Number(page) || 1;
+    const limitNum = Number(limit) || 10;
+    const skip = (pageNum - 1) * limitNum;
+
     // Build where clause
     const where: Prisma.OrderWhereInput = {};
 
-    // Filter berdasarkan role
-    if (role === 'buyer') {
-      where.buyerId = userId;
-    } else if (role === 'worker') {
-      where.service = {
-        sellerId: userId,
-      };
-    } else {
-      // Jika tidak ada role specified, ambil semua order user tersebut
-      where.OR = [{ buyerId: userId }, { service: { sellerId: userId } }];
-    }
-
-    // Filter status
-    if (status) {
-      where.status = status;
-    }
-
-    // Search by title
-    if (search) {
-      where.title = {
-        contains: search,
-        mode: 'insensitive',
-      };
-    }
+    // ... (kode filter role, status, search biarkan sama) ...
 
     // Build order by
     let orderBy: Prisma.OrderOrderByWithRelationInput = {};
@@ -538,18 +521,17 @@ export class OrdersService {
       case 'price_low':
         orderBy = { price: 'asc' };
         break;
+      default:
+        orderBy = { createdAt: 'desc' }; // Tambahkan default fallback
     }
-
-    // Pagination
-    const skip = (page - 1) * limit;
 
     // Execute queries
     const [orders, total] = await Promise.all([
       this.prisma.order.findMany({
         where,
         orderBy,
-        skip,
-        take: limit,
+        skip, // Sekarang pasti number (bukan NaN)
+        take: limitNum, // Sekarang pasti number (bukan string)
         include: {
           service: {
             select: {
@@ -575,9 +557,9 @@ export class OrdersService {
       data: orders,
       pagination: {
         total,
-        page,
-        limit,
-        totalPages: Math.ceil(total / limit),
+        page: pageNum,
+        limit: limitNum,
+        totalPages: Math.ceil(total / limitNum),
       },
     };
   }

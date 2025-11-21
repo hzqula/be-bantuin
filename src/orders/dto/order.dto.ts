@@ -2,10 +2,6 @@ import { z } from 'zod';
 
 /**
  * Schema untuk membuat pesanan baru
- *
- * Ketika pembeli ingin memesan jasa, mereka perlu memberikan informasi
- * tentang apa yang mereka butuhkan (requirements), file pendukung jika ada,
- * dan deadline yang diharapkan. Harga akan diambil dari service terkait.
  */
 export const CreateOrderSchema = z.object({
   serviceId: z.string().uuid({ message: 'ID jasa tidak valid' }),
@@ -20,16 +16,11 @@ export const CreateOrderSchema = z.object({
     .max(10, { message: 'Maksimal 10 file attachment' })
     .default([]),
 
-  // Deadline adalah opsional - jika tidak diisi, akan dihitung otomatis
-  // berdasarkan deliveryTime dari service
-  customDeadline: z.date().optional(),
+  customDeadline: z.coerce.date().optional(), // Gunakan coerce untuk date juga jika perlu
 });
 
 /**
  * Schema untuk mengirimkan hasil pekerjaan
- *
- * Penyedia jasa menggunakan ini ketika sudah selesai mengerjakan
- * dan siap mengirimkan deliverable kepada pembeli
  */
 export const DeliverOrderSchema = z.object({
   deliveryNote: z
@@ -45,9 +36,6 @@ export const DeliverOrderSchema = z.object({
 
 /**
  * Schema untuk meminta revisi
- *
- * Pembeli menggunakan ini jika hasil kerja belum sesuai harapan
- * dan memerlukan perbaikan
  */
 export const RequestRevisionSchema = z.object({
   revisionNote: z
@@ -63,15 +51,11 @@ export const RequestRevisionSchema = z.object({
 
 /**
  * Schema untuk filter dan pencarian order
- *
- * Digunakan oleh pembeli dan penyedia jasa untuk melihat
- * daftar pesanan mereka dengan berbagai kriteria
+ * UPDATE: Gunakan z.coerce.number() dan naikkan max limit
  */
 export const OrderFilterSchema = z.object({
-  // Role menentukan perspektif: sebagai buyer atau worker
   role: z.enum(['buyer', 'worker']).optional(),
 
-  // Filter berdasarkan status order
   status: z
     .enum([
       'DRAFT',
@@ -87,14 +71,13 @@ export const OrderFilterSchema = z.object({
     ])
     .optional(),
 
-  // Pencarian berdasarkan judul service
   search: z.string().optional(),
 
-  // Pagination
-  page: z.number().int().positive().default(1),
-  limit: z.number().int().positive().max(50).default(10),
+  // UPDATE DI SINI:
+  page: z.coerce.number().int().positive().default(1),
+  // Naikkan max ke 100 agar sesuai dengan request dashboard
+  limit: z.coerce.number().int().positive().max(100).default(10),
 
-  // Sorting
   sortBy: z
     .enum(['newest', 'oldest', 'deadline', 'price_high', 'price_low'])
     .default('newest'),
@@ -102,9 +85,6 @@ export const OrderFilterSchema = z.object({
 
 /**
  * Schema untuk membatalkan order
- *
- * Baik pembeli maupun penyedia jasa bisa membatalkan order
- * dalam kondisi tertentu dengan memberikan alasan
  */
 export const CancelOrderSchema = z.object({
   reason: z
@@ -114,10 +94,7 @@ export const CancelOrderSchema = z.object({
 });
 
 /**
- * Schema untuk response pembayaran dari payment gateway
- *
- * Ini adalah data yang diterima dari webhook Midtrans/Xendit
- * setelah pembayaran diproses
+ * Schema untuk response pembayaran
  */
 export const PaymentCallbackSchema = z.object({
   orderId: z.string(),
@@ -125,10 +102,9 @@ export const PaymentCallbackSchema = z.object({
   status: z.enum(['PENDING', 'SETTLEMENT', 'SUCCESS', 'FAILED', 'EXPIRED']),
   amount: z.number().positive(),
   paymentMethod: z.string(),
-  paidAt: z.string().optional(), // ISO date string
+  paidAt: z.string().optional(),
 });
 
-// Export semua tipe TypeScript yang diinfer dari schema
 export type CreateOrderDto = z.infer<typeof CreateOrderSchema>;
 export type DeliverOrderDto = z.infer<typeof DeliverOrderSchema>;
 export type RequestRevisionDto = z.infer<typeof RequestRevisionSchema>;
