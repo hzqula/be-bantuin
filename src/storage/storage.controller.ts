@@ -28,6 +28,35 @@ import {
 } from './dto/upload.dto';
 import { ZodValidationPipe } from 'nestjs-zod';
 
+/**
+ * Konfigurasi Multer untuk validasi Gambar
+ * Membatasi hanya file: jpg, jpeg, png, gif, webp
+ * Max size: 5MB
+ */
+const imageUploadOptions = {
+  limits: {
+    fileSize: 5 * 1024 * 1024, // 5 MB
+  },
+  fileFilter: (
+    _req: any,
+    file: Express.Multer.File,
+    cb: (error: Error | null, acceptFile: boolean) => void,
+  ) => {
+    if (file.mimetype.match(/^image\/(jpg|jpeg|png|gif|webp)$/)) {
+      // File diterima
+      cb(null, true);
+    } else {
+      // File ditolak
+      cb(
+        new BadRequestException(
+          'Format file tidak valid. Hanya diperbolehkan JPG, JPEG, PNG, GIF, atau WEBP.',
+        ),
+        false,
+      );
+    }
+  },
+};
+
 @Controller('upload')
 export class StorageController {
   constructor(private readonly storageService: StorageService) {}
@@ -43,7 +72,7 @@ export class StorageController {
    */
   @Post()
   @HttpCode(HttpStatus.CREATED)
-  @UseInterceptors(FileInterceptor('file'))
+  @UseInterceptors(FileInterceptor('file', imageUploadOptions))
   async upload(
     @UploadedFile() file: Express.Multer.File,
     @Body(new ZodValidationPipe(UploadFileSchema))
@@ -104,7 +133,7 @@ export class StorageController {
    * - path: (required) Path file yang akan diupdate
    */
   @Put()
-  @UseInterceptors(FileInterceptor('file'))
+  @UseInterceptors(FileInterceptor('file', imageUploadOptions))
   async updateFile(
     @UploadedFile() file: Express.Multer.File,
     @Query(new ZodValidationPipe(UpdateFileSchema))
@@ -169,7 +198,7 @@ export class StorageController {
    */
   @Post('account-photo')
   @HttpCode(HttpStatus.CREATED)
-  @UseInterceptors(FileInterceptor('file'))
+  @UseInterceptors(FileInterceptor('file', imageUploadOptions))
   async uploadAccountPhoto(
     @UploadedFile() file: Express.Multer.File,
     @Body(new ZodValidationPipe(UploadAccountPhotoSchema))
@@ -207,7 +236,7 @@ export class StorageController {
    */
   @Post('service-photo')
   @HttpCode(HttpStatus.CREATED)
-  @UseInterceptors(FileInterceptor('file'))
+  @UseInterceptors(FileInterceptor('file', imageUploadOptions))
   async uploadServicePhoto(
     @UploadedFile() file: Express.Multer.File,
     @Body(new ZodValidationPipe(UploadServicePhotoSchema))
@@ -251,7 +280,7 @@ export class StorageController {
    */
   @Post('seller-order-photo')
   @HttpCode(HttpStatus.CREATED)
-  @UseInterceptors(FileInterceptor('file'))
+  @UseInterceptors(FileInterceptor('file', imageUploadOptions))
   async uploadSellerOrderPhoto(
     @UploadedFile() file: Express.Multer.File,
     @Body(new ZodValidationPipe(UploadSellerOrderPhotoSchema))
@@ -295,7 +324,7 @@ export class StorageController {
    */
   @Post('buyer-order-photo')
   @HttpCode(HttpStatus.CREATED)
-  @UseInterceptors(FileInterceptor('file'))
+  @UseInterceptors(FileInterceptor('file', imageUploadOptions))
   async uploadBuyerOrderPhoto(
     @UploadedFile() file: Express.Multer.File,
     @Body(new ZodValidationPipe(UploadBuyerOrderPhotoSchema))

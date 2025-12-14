@@ -121,4 +121,3 @@ export const UploadBuyerOrderPhotoSchema = z.object({
 export type UploadBuyerOrderPhotoDto = z.infer<
   typeof UploadBuyerOrderPhotoSchema
 >;
-

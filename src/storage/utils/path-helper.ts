@@ -81,4 +81,3 @@ export function generateBuyerOrderPhotoPath(
   const orderFolder = sanitizeFolderName(orderName);
   return `${userFolder}/pembeli/${orderFolder}/${filename}`;
 }
-
