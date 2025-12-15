@@ -17,7 +17,7 @@ export class AdminService {
     private walletService: WalletsService,
     private notificationService: NotificationsService,
     private ordersService: OrdersService,
-  ) {}
+  ) { }
 
   /**
    * [Admin] Get services that are pending review
@@ -33,6 +33,39 @@ export class AdminService {
         },
       },
     });
+  }
+
+  /**
+   * [Admin] Get service details by ID
+   */
+  async getServiceById(id: string) {
+    const service = await this.prisma.service.findUnique({
+      where: { id },
+      include: {
+        seller: {
+          select: {
+            id: true,
+            fullName: true,
+            email: true,
+            profilePicture: true,
+            createdAt: true,
+          },
+        },
+        reviews: {
+          take: 5,
+          orderBy: { createdAt: 'desc' },
+          include: {
+            author: { select: { fullName: true, profilePicture: true } },
+          },
+        },
+      },
+    });
+
+    if (!service) {
+      throw new NotFoundException('Jasa tidak ditemukan');
+    }
+
+    return service;
   }
 
   /**

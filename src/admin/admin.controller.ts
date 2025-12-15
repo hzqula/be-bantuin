@@ -20,7 +20,7 @@ import { GetUser } from '../auth/decorators/get-user.decorator';
 @Controller('admin')
 @UseGuards(JwtAuthGuard, AdminGuard) // Terapkan JwtAuthGuard dan AdminGuard
 export class AdminController {
-  constructor(private readonly adminService: AdminService) {}
+  constructor(private readonly adminService: AdminService) { }
 
   /**
    * Mendapatkan semua PayoutRequest yang pending
@@ -43,6 +43,16 @@ export class AdminController {
   async getPendingServices() {
     const services = await this.adminService.getPendingServices();
     return { success: true, data: services };
+  }
+
+  /**
+   * [Admin] Get service detail by ID
+   * GET /api/admin/services/:id
+   */
+  @Get('services/:id')
+  async getServiceById(@Param('id') id: string) {
+    const service = await this.adminService.getServiceById(id);
+    return { success: true, data: service };
   }
 
   /**
